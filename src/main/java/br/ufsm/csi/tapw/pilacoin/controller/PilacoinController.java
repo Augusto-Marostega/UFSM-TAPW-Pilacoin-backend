@@ -80,7 +80,6 @@ public class PilacoinController {
                 //.usuarioMinerador("iris_augusto")
                 .build();
 
-        System.out.println("TESTANNDOOO");
         rabbitMQService.enviarMensagemParaFila("query", pilacoinDataHandler.objParaStringJson(queryJson));
         return "Tabela de iris_augusto atualizada : " + "\n queryJson: " + queryJson;
     }
