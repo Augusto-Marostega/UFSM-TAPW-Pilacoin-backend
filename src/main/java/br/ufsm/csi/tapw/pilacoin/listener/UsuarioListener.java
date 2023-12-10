@@ -85,31 +85,37 @@ public class UsuarioListener {
                 List<PilacoinServer> pilacoinList = pilacoinDataHandler.pilacoinJsonListParaPilacoin(queryRespostaJson.getPilasResult());
                 List<PilacoinServer> pilacoinListAtual = pilacoinServerRepository.findAll();
 
+// Etapa 1: Atualizar Itens Correspondentes por Nonce
                 List<PilacoinServer> itemsToUpdate = pilacoinListAtual.stream()
                         .filter(itemAtual -> {
-                            // Encontrar o item correspondente na lista pilacoinList com o mesmo ID
                             PilacoinServer correspondente = pilacoinList.stream()
-                                    .filter(item -> Objects.equals(item.getNonce(), itemAtual.getNonce())) // Supondo que 'id' é o identificador
+                                    .filter(item -> Objects.equals(item.getNonce(), itemAtual.getNonce()))
                                     .findFirst()
                                     .orElse(null);
-
-                            // Atualizar o item se o 'transferido' for nulo na lista pilacoinList
                             return correspondente != null && correspondente.getTransferido() == null;
                         })
                         .collect(Collectors.toList());
 
-                // Atualizar os itens correspondentes com 'transferido' nulo na lista pilacoinListAtual
+// Atualizar os itens correspondentes com 'transferido' nulo na lista pilacoinListAtual
                 for (PilacoinServer item : itemsToUpdate) {
-                    // Atualizar o atributo 'transferido' ou qualquer outro atributo que seja necessário
+                    // Atualize o atributo 'transferido' ou qualquer outro atributo necessário
                     //item.setTransferido(/* Defina o valor adequado aqui */);
                 }
 
-                // Salvar as alterações no banco de dados
+// Salvar as alterações no banco de dados
                 if (!itemsToUpdate.isEmpty()) {
                     pilacoinServerRepository.saveAll(itemsToUpdate);
                 }
 
-                //pilacoinServerRepository.saveAllAndFlush(pilacoinList);
+// Etapa 2: Adicionar Novos Itens
+                List<PilacoinServer> novosItens = pilacoinList.stream()
+                        .filter(item -> pilacoinListAtual.stream().noneMatch(atual -> Objects.equals(atual.getNonce(), item.getNonce())))
+                        .collect(Collectors.toList());
+
+                if (!novosItens.isEmpty()) {
+                    pilacoinServerRepository.saveAll(novosItens);
+                }
+
             }
         }
         if(queryRespostaJson.getBlocosResult() != null && !queryRespostaJson.getBlocosResult().isEmpty()){
