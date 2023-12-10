@@ -209,6 +209,17 @@ public class PilacoinDataHandler {
             return null;
         }
     }
+    public String reduzirString(String str) {
+        String stringReduzida = "";
+            if (str.length() > 3800) {
+                stringReduzida = str.substring(0, 3800);
+                System.out.println(stringReduzida);
+            } else {
+                stringReduzida = str;
+            }
+            return stringReduzida;
+    }
+
 
 
 }

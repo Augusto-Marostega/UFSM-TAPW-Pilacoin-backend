@@ -1,10 +1,11 @@
 package br.ufsm.csi.tapw.pilacoin.controller;
 
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.PilacoinServer;
 import br.ufsm.csi.tapw.pilacoin.model.Usuario;
 import br.ufsm.csi.tapw.pilacoin.model.json.QueryJson;
-import br.ufsm.csi.tapw.pilacoin.model.json.TransacaoJson;
 import br.ufsm.csi.tapw.pilacoin.model.json.TransferirPilaInfo;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.PilacoinServerRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.UsuarioRepository;
 import br.ufsm.csi.tapw.pilacoin.service.MinerarPilacoinService;
@@ -24,10 +25,11 @@ import javax.crypto.NoSuchPaddingException;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import static org.hibernate.query.sqm.tree.SqmNode.log;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -41,9 +43,10 @@ public class PilacoinController {
     private final UsuarioService usuarioService;
     private final UsuarioRepository usuarioRepository;
     private final PilacoinServerRepository pilacoinServerRepository;
+    private final LogLocalRepository logLocalRepository;
 
     @Autowired
-    public PilacoinController(MinerarPilacoinService minerarPilaCoinService, TransferirPilacoinService transferirPilacoinService, PilacoinDataHandler pilacoinDataHandler, RabbitMQService rabbitMQService, UsuarioService usuarioService, UsuarioRepository usuarioRepository, PilacoinServerRepository pilacoinServerRepository) {
+    public PilacoinController(MinerarPilacoinService minerarPilaCoinService, TransferirPilacoinService transferirPilacoinService, PilacoinDataHandler pilacoinDataHandler, RabbitMQService rabbitMQService, UsuarioService usuarioService, UsuarioRepository usuarioRepository, PilacoinServerRepository pilacoinServerRepository, LogLocalRepository logLocalRepository) {
         this.minerarPilaCoinService = minerarPilaCoinService;
         this.transferirPilacoinService = transferirPilacoinService;
         this.pilacoinDataHandler = pilacoinDataHandler;
@@ -51,6 +54,7 @@ public class PilacoinController {
         this.usuarioService = usuarioService;
         this.usuarioRepository = usuarioRepository;
         this.pilacoinServerRepository = pilacoinServerRepository;
+        this.logLocalRepository = logLocalRepository;
     }
 
     @GetMapping("/usuario/atualizar") //atualiza os usuários com base no servidor.
@@ -94,6 +98,12 @@ public class PilacoinController {
     public List<Usuario>  getUsuarios(){
         List<Usuario> usuarios = usuarioRepository.findAll();
         return usuarios;
+    }
+
+    @GetMapping("/logs")
+    public List<LogLocal> getLogs(){
+        List<LogLocal> logLocalList = logLocalRepository.findAll();
+        return logLocalList;
     }
 
     @PostMapping("/transferir")

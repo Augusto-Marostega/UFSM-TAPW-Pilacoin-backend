@@ -1,8 +1,10 @@
 package br.ufsm.csi.tapw.pilacoin.service;
 
 import br.ufsm.csi.tapw.pilacoin.model.Dificuldade;
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.Pilacoin;
 import br.ufsm.csi.tapw.pilacoin.model.json.PilacoinJson;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.PilacoinRepository;
 import br.ufsm.csi.tapw.pilacoin.util.PilacoinDataHandler;
 import br.ufsm.csi.tapw.pilacoin.util.RSAKeyPairGenerator;
@@ -32,19 +34,20 @@ public class MinerarPilacoinService {
     private final AtomicBoolean mineracaoParada = new AtomicBoolean(false);
     private final PilacoinDataHandler pilacoinDataHandler;
     private final PilacoinRepository pilacoinRepository;
-
+    private final LogLocalRepository logLocalRepository;
     @Autowired
     public MinerarPilacoinService(
             PilacoinDataHandler pilacoinDataHandler,
             RSAKeyPairGenerator rsaKeyPairGenerator,
             DificuldadeService dificuldadeService,
             RabbitMQService rabbitMQService,
-            PilacoinRepository pilacoinRepository) {
+            PilacoinRepository pilacoinRepository, LogLocalRepository logLocalRepository) {
         this.pilacoinDataHandler = pilacoinDataHandler;
         this.rsaKeyPairGenerator = rsaKeyPairGenerator;
         this.dificuldadeService = dificuldadeService;
         this.rabbitMQService = rabbitMQService;
         this.pilacoinRepository = pilacoinRepository;
+        this.logLocalRepository = logLocalRepository;
     }
 
     @Async
@@ -101,6 +104,14 @@ public class MinerarPilacoinService {
                         Pilacoin pilacoin = pilacoinDataHandler.pilacoinJsonParaPilacoin(pilaCoinJson);
                         pilacoinRepository.saveAndFlush(pilacoin);
                         enviarPilaCoinParaFila(pilacoinJsonString);
+                        LogLocal loglocal = LogLocal.builder()
+                                .tipo("minerar_pilacoin")
+                                .dataCriacao(new Date())
+                                .status("info")
+                                .conteudo("Pilacoin minerado com sucesso nº tentativas: " + contador + " pilacoin: " + pilacoinDataHandler.reduzirString(pilacoinJsonString))
+                                .build();
+                        logLocalRepository.saveAndFlush(loglocal);
+
                         break;  // Saia do loop se o Pilacoin for minerado com sucesso
                     }
                 }

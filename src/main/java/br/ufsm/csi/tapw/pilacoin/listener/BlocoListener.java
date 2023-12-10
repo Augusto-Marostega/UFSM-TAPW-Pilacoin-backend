@@ -20,6 +20,7 @@ public class BlocoListener {
     private final MinerarBlocoService minerarBlocoService;
     private final ValidarBlocoService validarBlocoService;
 
+
     @Autowired
     public BlocoListener(RabbitMQService rabbitMQService, MinerarBlocoService minerarBlocoService, ValidarBlocoService validarBlocoService) {
         this.rabbitMQService = rabbitMQService;

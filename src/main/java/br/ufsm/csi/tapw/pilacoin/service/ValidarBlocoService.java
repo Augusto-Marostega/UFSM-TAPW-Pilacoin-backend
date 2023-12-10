@@ -1,8 +1,10 @@
 package br.ufsm.csi.tapw.pilacoin.service;
 
 import br.ufsm.csi.tapw.pilacoin.model.Dificuldade;
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.json.BlocoJson;
 import br.ufsm.csi.tapw.pilacoin.model.json.BlocoValidadoJson;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.util.PilacoinDataHandler;
 import br.ufsm.csi.tapw.pilacoin.util.RSAKeyPairGenerator;
 import org.slf4j.Logger;
@@ -11,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
+import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -24,17 +27,19 @@ public class ValidarBlocoService {
     private final RabbitMQService rabbitMQService;
     private final AtomicBoolean miningStopped = new AtomicBoolean(false);
     private final PilacoinDataHandler pilacoinDataHandler;
+    private final LogLocalRepository logLocalRepository;
 
     @Autowired
     public ValidarBlocoService(
             PilacoinDataHandler pilacoinDataHandler,
             RSAKeyPairGenerator rsaKeyPairGenerator,
             DificuldadeService dificuldadeService,
-            RabbitMQService rabbitMQService) {
+            RabbitMQService rabbitMQService, LogLocalRepository logLocalRepository) {
         this.pilacoinDataHandler = pilacoinDataHandler;
         this.rsaKeyPairGenerator = rsaKeyPairGenerator;
         this.dificuldadeService = dificuldadeService;
         this.rabbitMQService = rabbitMQService;
+        this.logLocalRepository = logLocalRepository;
     }
 
     public CompletableFuture<Void> validarBlocoAsync(String strBlocoJson) {
@@ -44,10 +49,25 @@ public class ValidarBlocoService {
                 if(!validarBloco(strBlocoJson)){
                     //erro ao validar, reenviar "strBlocoJson" para a fila bloco-validado
                     logger.error("[validarBlocoAsync] Bloco NÃO Validado, reenviando para a fila 'bloco-minerado'.");
+                    LogLocal loglocal = LogLocal.builder()
+                            .tipo("validar_bloco")
+                            .dataCriacao(new Date())
+                            .status("error")
+                            .conteudo("Bloco NÃO Validado, reenviando para a fila 'bloco-minerado'.")
+                            .build();
                     rabbitMQService.enviarMensagemParaFila("bloco-minerado", strBlocoJson);
+                    logLocalRepository.saveAndFlush(loglocal);
                 } else{
                     logger.info("[validarBlocoAsync] Bloco Validado, reenviando para a fila 'bloco-minerado' para outros usuários validarem.");
                     rabbitMQService.enviarMensagemParaFila("bloco-minerado", strBlocoJson);
+
+                    LogLocal loglocal = LogLocal.builder()
+                            .tipo("validar_bloco")
+                            .dataCriacao(new Date())
+                            .status("info")
+                            .conteudo("Bloco Validado com sucesso.: " + pilacoinDataHandler.reduzirString(strBlocoJson))
+                            .build();
+                    logLocalRepository.saveAndFlush(loglocal);
                 }
             });
         } catch (Exception e) {
@@ -93,6 +113,8 @@ public class ValidarBlocoService {
                     BlocoValidadoJson blocoValidadoJson = new BlocoValidadoJson("iris_augusto", rsaKeyPairGenerator.generateOrLoadKeyPair().getPublic().getEncoded(), assinaturaBloco, blocoJson);
                     //logger.info("[validarBloco] Bloco assinado JSON: {}", pilacoinDataHandler.blocoValidadoJsonParaStrJson(blocoValidadoJson));
                     rabbitMQService.enviarMensagemParaFila("bloco-validado", pilacoinDataHandler.objParaStringJson(blocoValidadoJson));
+
+
                     return true;
                 }
             }

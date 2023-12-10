@@ -1,10 +1,12 @@
 package br.ufsm.csi.tapw.pilacoin.listener;
 
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.Pilacoin;
 import br.ufsm.csi.tapw.pilacoin.model.PilacoinServer;
 import br.ufsm.csi.tapw.pilacoin.model.Usuario;
 import br.ufsm.csi.tapw.pilacoin.model.json.MsgJson;
 import br.ufsm.csi.tapw.pilacoin.model.json.QueryRespostaJson;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.PilacoinServerRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.PilacoinRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.UsuarioRepository;
@@ -18,6 +20,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -32,18 +35,20 @@ public class UsuarioListener {
     private final PilacoinDataHandler pilacoinDataHandler;
     private final UsuarioRepository usuarioRepository;
     private final PilacoinServerRepository pilacoinServerRepository;
+    private final LogLocalRepository logLocalRepository;
 
     @Autowired
     public UsuarioListener(RabbitMQService rabbitMQService,
                            PilacoinRepository pilacoinRepository,
                            PilacoinDataHandler pilacoinDataHandler,
                            UsuarioRepository usuarioRepository,
-                           PilacoinServerRepository pilacoinServerRepository) {
+                           PilacoinServerRepository pilacoinServerRepository, LogLocalRepository logLocalRepository) {
         this.rabbitMQService = rabbitMQService;
         this.pilacoinRepository = pilacoinRepository;
         this.pilacoinDataHandler = pilacoinDataHandler;
         this.usuarioRepository = usuarioRepository;
         this.pilacoinServerRepository = pilacoinServerRepository;
+        this.logLocalRepository = logLocalRepository;
     }
 
 
@@ -67,10 +72,28 @@ public class UsuarioListener {
         } else {
             logger.info("[handleIrisAugustoMessage] Recebido da fila 'iris_augusto': {}", mensagem);
         }
+        LogLocal loglocal = LogLocal.builder()
+                .tipo("recebido_iris_augusto")
+                .dataCriacao(new Date())
+                .status("info")
+                .conteudo("Recebido na fila 'iris_augusto': " + pilacoinDataHandler.reduzirString(mensagem))
+                .build();
+        logLocalRepository.saveAndFlush(loglocal);
     }
     @RabbitListener(queues = "iris_augusto-query")
     public void handleIrisAugustoQueryMessage(String mensagem) {
-        logger.info("[handleAugustoQueryMessage] Recebido da fila 'iris_augusto-query': {}", mensagem);
+        LogLocal loglocal = LogLocal.builder()
+                .tipo("recebido_iris_augusto-query")
+                .dataCriacao(new Date())
+                .status("info")
+                .conteudo("Recebido na fila 'iris_augusto-query': " + pilacoinDataHandler.reduzirString(mensagem))
+                .build();
+        logLocalRepository.saveAndFlush(loglocal);
+
+        if(false){
+            return;
+        }
+        //logger.info("[handleAugustoQueryMessage] Recebido da fila 'iris_augusto-query': {}", mensagem);
         if(mensagem == null || mensagem.isEmpty()){
             logger.warn("[handleAugustoQueryMessage] 'iris_augusto-query' vazio...");
             return;
@@ -85,7 +108,7 @@ public class UsuarioListener {
                 List<PilacoinServer> pilacoinList = pilacoinDataHandler.pilacoinJsonListParaPilacoin(queryRespostaJson.getPilasResult());
                 List<PilacoinServer> pilacoinListAtual = pilacoinServerRepository.findAll();
 
-// Etapa 1: Atualizar Itens Correspondentes por Nonce
+                // Etapa 1: Atualizar Itens Correspondentes por Nonce
                 List<PilacoinServer> itemsToUpdate = pilacoinListAtual.stream()
                         .filter(itemAtual -> {
                             PilacoinServer correspondente = pilacoinList.stream()
@@ -96,18 +119,18 @@ public class UsuarioListener {
                         })
                         .collect(Collectors.toList());
 
-// Atualizar os itens correspondentes com 'transferido' nulo na lista pilacoinListAtual
+                // Atualizar os itens correspondentes com 'transferido' nulo na lista pilacoinListAtual
                 for (PilacoinServer item : itemsToUpdate) {
                     // Atualize o atributo 'transferido' ou qualquer outro atributo necessário
                     //item.setTransferido(/* Defina o valor adequado aqui */);
                 }
 
-// Salvar as alterações no banco de dados
+                // Salvar as alterações no banco de dados
                 if (!itemsToUpdate.isEmpty()) {
                     pilacoinServerRepository.saveAll(itemsToUpdate);
                 }
 
-// Etapa 2: Adicionar Novos Itens
+                // Etapa 2: Adicionar Novos Itens
                 List<PilacoinServer> novosItens = pilacoinList.stream()
                         .filter(item -> pilacoinListAtual.stream().noneMatch(atual -> Objects.equals(atual.getNonce(), item.getNonce())))
                         .collect(Collectors.toList());
@@ -139,10 +162,23 @@ public class UsuarioListener {
     @RabbitListener(queues = "report")
     public void handleReport(String mensagem){
         logger.info("[handleReport] Recebido na fila 'report': {}", mensagem);
+        LogLocal loglocal = LogLocal.builder()
+                .tipo("recebido_report")
+                .dataCriacao(new Date())
+                .status("info")
+                .conteudo("Recebido na fila 'report': " + pilacoinDataHandler.reduzirString(mensagem))
+                .build();
+        logLocalRepository.saveAndFlush(loglocal);
     }
-
     @RabbitListener(queues = "clients-errors")
     public void handleClientsErrors(String mensagem){
         logger.warn("[handleClientsErrors] fila 'clients-errors': {}", mensagem);
+        LogLocal loglocal = LogLocal.builder()
+                .tipo("recebido_clients-errors")
+                .dataCriacao(new Date())
+                .status("error")
+                .conteudo("Recebido na fila 'clients-errors': " + mensagem)
+                .build();
+        logLocalRepository.saveAndFlush(loglocal);
     }
 }

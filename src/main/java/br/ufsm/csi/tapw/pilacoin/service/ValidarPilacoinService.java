@@ -1,8 +1,10 @@
 package br.ufsm.csi.tapw.pilacoin.service;
 
 import br.ufsm.csi.tapw.pilacoin.model.Dificuldade;
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.json.PilacoinJson;
 import br.ufsm.csi.tapw.pilacoin.model.json.PilacoinValidadoJson;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.util.PilacoinDataHandler;
 import br.ufsm.csi.tapw.pilacoin.util.RSAKeyPairGenerator;
 import org.slf4j.Logger;
@@ -11,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
+import java.util.Date;
 
 @Service
 public class ValidarPilacoinService {
@@ -19,13 +22,15 @@ public class ValidarPilacoinService {
     private final RabbitMQService rabbitMQService;
     private final PilacoinDataHandler pilacoinDataHandler;
     private final DificuldadeService dificuldadeService;
+    private final LogLocalRepository logLocalRepository;
 
     @Autowired
-    public ValidarPilacoinService(RSAKeyPairGenerator rsaKeyPairGenerator, PilacoinDataHandler pilacoinDataHandler, RabbitMQService rabbitMQService, DificuldadeService dificuldadeService) {
+    public ValidarPilacoinService(RSAKeyPairGenerator rsaKeyPairGenerator, PilacoinDataHandler pilacoinDataHandler, RabbitMQService rabbitMQService, DificuldadeService dificuldadeService, LogLocalRepository logLocalRepository) {
         this.rsaKeyPairGenerator = rsaKeyPairGenerator;
         this.pilacoinDataHandler = pilacoinDataHandler;
         this.rabbitMQService = rabbitMQService;
         this.dificuldadeService = dificuldadeService;
+        this.logLocalRepository = logLocalRepository;
     }
 
     public boolean validarPilacoin(String strPilacoinJson) {
@@ -61,11 +66,26 @@ public class ValidarPilacoinService {
                     PilacoinValidadoJson pilacoinValidadoJson = new PilacoinValidadoJson("iris_augusto", rsaKeyPairGenerator.generateOrLoadKeyPair().getPublic().getEncoded(), assinaturaPilacoin, pilacoinJson);
                     //logger.info("[processarPilacoin] Pilacoin assinado JSON: {}", pilacoinDataHandler.pilacoinValidadoJsonParaStrJson(pilacoinValidadoJson));
                     rabbitMQService.enviarMensagemParaFila("pila-validado", pilacoinDataHandler.objParaStringJson(pilacoinValidadoJson));
+
+                    LogLocal loglocal = LogLocal.builder()
+                            .tipo("validar_pilacoin")
+                            .dataCriacao(new Date())
+                            .status("info")
+                            .conteudo("Pilacoin Validado com sucesso." + pilacoinDataHandler.reduzirString(" Nome Criador: " + pilacoinJson.getNomeCriador() + " Nonce: " + pilacoinJson.getNonce()))
+                            .build();
+                    logLocalRepository.saveAndFlush(loglocal);
                     return true;
                 }
             }
             //log hash não é menor que a dificuldade atual
             logger.warn("[processarPilacoin] HASH não é menor que dificuldade...");
+            LogLocal loglocal = LogLocal.builder()
+                    .tipo("validar_pilacoin")
+                    .dataCriacao(new Date())
+                    .status("error")
+                    .conteudo("Pilacoin não validado. HASH não é menor que dificuldade.")
+                    .build();
+            logLocalRepository.saveAndFlush(loglocal);
             return false;
         } catch (Exception e) {
             logger.error("[processarPilacoin] Erro ao processar Pilacoin: {}", e.getMessage());

@@ -1,7 +1,9 @@
 package br.ufsm.csi.tapw.pilacoin.service;
 
 import br.ufsm.csi.tapw.pilacoin.model.Dificuldade;
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.json.BlocoJson;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.util.PilacoinDataHandler;
 import br.ufsm.csi.tapw.pilacoin.util.RSAKeyPairGenerator;
 import org.slf4j.Logger;
@@ -13,10 +15,9 @@ import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
@@ -26,6 +27,7 @@ public class MinerarBlocoService {
     private final RSAKeyPairGenerator rsaKeyPairGenerator;
     private final DificuldadeService dificuldadeService;
     private final RabbitMQService rabbitMQService;
+    private final LogLocalRepository logLocalRepository;
     private final AtomicBoolean mineracaoParada = new AtomicBoolean(false);
 
     @Autowired
@@ -33,11 +35,12 @@ public class MinerarBlocoService {
             PilacoinDataHandler pilacoinDataHandler,
             RSAKeyPairGenerator rsaKeyPairGenerator,
             DificuldadeService dificuldadeService,
-            RabbitMQService rabbitMQService) {
+            RabbitMQService rabbitMQService, LogLocalRepository logLocalRepository) {
         this.pilacoinDataHandler = pilacoinDataHandler;
         this.rsaKeyPairGenerator = rsaKeyPairGenerator;
         this.dificuldadeService = dificuldadeService;
         this.rabbitMQService = rabbitMQService;
+        this.logLocalRepository = logLocalRepository;
     }
 
     public CompletableFuture<Void> minerarBlocoAsync(String strBlocoJson) {
@@ -88,6 +91,14 @@ public class MinerarBlocoService {
                     logger.info("[minerarBloco] Bloco minerado com sucesso: {}", blocoJsonString);
 
                     rabbitMQService.enviarMensagemParaFila("bloco-minerado", blocoJsonString);
+
+                    LogLocal loglocal = LogLocal.builder()
+                            .tipo("minerar_bloco")
+                            .dataCriacao(new Date())
+                            .status("info")
+                            .conteudo("Bloco minerado com sucesso:: " + pilacoinDataHandler.reduzirString(blocoJsonString))
+                            .build();
+                    logLocalRepository.saveAndFlush(loglocal);
                     return;
                 }
             }

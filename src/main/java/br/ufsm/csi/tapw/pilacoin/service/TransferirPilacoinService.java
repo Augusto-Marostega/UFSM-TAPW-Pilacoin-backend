@@ -1,8 +1,9 @@
 package br.ufsm.csi.tapw.pilacoin.service;
 
+import br.ufsm.csi.tapw.pilacoin.model.LogLocal;
 import br.ufsm.csi.tapw.pilacoin.model.PilacoinServer;
 import br.ufsm.csi.tapw.pilacoin.model.json.TransacaoJson;
-import br.ufsm.csi.tapw.pilacoin.repository.PilacoinRepository;
+import br.ufsm.csi.tapw.pilacoin.repository.LogLocalRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.PilacoinServerRepository;
 import br.ufsm.csi.tapw.pilacoin.repository.UsuarioRepository;
 import br.ufsm.csi.tapw.pilacoin.util.PilacoinDataHandler;
@@ -18,6 +19,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Date;
 
 @Service
 public class TransferirPilacoinService {
@@ -28,6 +30,7 @@ public class TransferirPilacoinService {
     private final PilacoinDataHandler pilacoinDataHandler;
     private final UsuarioRepository usuarioRepository;
     private final PilacoinServerRepository pilacoinServerRepository;
+    private final LogLocalRepository logLocalRepository;
 
     @Autowired
     public TransferirPilacoinService(
@@ -35,12 +38,13 @@ public class TransferirPilacoinService {
             RSAKeyPairGenerator rsaKeyPairGenerator,
             RabbitMQService rabbitMQService,
             UsuarioRepository usuarioRepository,
-            PilacoinServerRepository pilacoinServerRepository) {
+            PilacoinServerRepository pilacoinServerRepository, LogLocalRepository logLocalRepository) {
         this.pilacoinDataHandler = pilacoinDataHandler;
         this.rsaKeyPairGenerator = rsaKeyPairGenerator;
         this.rabbitMQService = rabbitMQService;
         this.usuarioRepository = usuarioRepository;
         this.pilacoinServerRepository = pilacoinServerRepository;
+        this.logLocalRepository = logLocalRepository;
     }
 
     public void transferirPilacoinAugusto(String nonce, byte[] chaveUsuarioDestino, String nomeUsuarioDestino) throws IllegalBlockSizeException, NoSuchPaddingException, BadPaddingException, NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
@@ -66,5 +70,13 @@ public class TransferirPilacoinService {
         pilaTransferido.setTransferido("sim");
         pilacoinServerRepository.saveAndFlush(pilaTransferido);
         logger.info("[transferirPilacoin] Pila transferido 'transferir-pila");
+
+        LogLocal loglocal = LogLocal.builder()
+                .tipo("transferir_pilacoin")
+                .dataCriacao(new Date())
+                .status("info")
+                .conteudo("Pilacoin transferido com sucesso.: " + pilacoinDataHandler.reduzirString(pilaTransferir.getNoncePila()))
+                .build();
+        logLocalRepository.saveAndFlush(loglocal);
     }
 }
