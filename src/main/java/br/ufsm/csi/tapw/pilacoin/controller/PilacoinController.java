@@ -102,7 +102,8 @@ public class PilacoinController {
 
     @GetMapping("/logs")
     public List<LogLocal> getLogs(){
-        List<LogLocal> logLocalList = logLocalRepository.findAll();
+        //List<LogLocal> logLocalList = logLocalRepository.findAll();
+        List<LogLocal> logLocalList = logLocalRepository.findFirst1000ByOrderByDataCriacaoDesc();
         return logLocalList;
     }
 

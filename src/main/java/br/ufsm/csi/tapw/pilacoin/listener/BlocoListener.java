@@ -28,7 +28,7 @@ public class BlocoListener {
         this.validarBlocoService = validarBlocoService;
     }
 
-    @RabbitListener(queues = "descobre-bloco") //Minerar bloco
+    //@RabbitListener(queues = "descobre-bloco") //Minerar bloco
     public void handleDescobreblocoMessage(String mensagem) {
         logger.info("[handleDescobreblocoMessage] Recebido da fila 'descobre-bloco': {}", mensagem);
         CompletableFuture<Void> resultadoMineracao = minerarBlocoService.minerarBlocoAsync(mensagem);

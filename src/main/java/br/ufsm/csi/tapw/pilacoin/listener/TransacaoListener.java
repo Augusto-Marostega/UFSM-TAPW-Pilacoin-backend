@@ -14,7 +14,7 @@ public class TransacaoListener {
 
     private final RabbitMQService rabbitMQService;
 
-    @Autowired
+    //@Autowired
     public TransacaoListener(RabbitMQService rabbitMQService) {
         this.rabbitMQService = rabbitMQService;
     }
